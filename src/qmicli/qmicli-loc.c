@@ -57,9 +57,12 @@ typedef struct {
     guint           position_report_indication_id;
     guint           nmea_indication_id;
     guint           gnss_sv_info_indication_id;
+    guint           gnss_measurement_report_indication_id;
+    guint           gnss_sv_poly_report_indication_id;
     guint           delete_assistance_data_indication_id;
     guint           get_nmea_types_indication_id;
     guint           set_nmea_types_indication_id;
+    guint           set_gnss_constellation_report_config_indication_id;
     guint           get_operation_mode_indication_id;
     guint           set_operation_mode_indication_id;
     guint           get_engine_lock_indication_id;
@@ -77,9 +80,12 @@ static gint     timeout;
 static gboolean follow_position_report_flag;
 static gboolean follow_gnss_sv_info_flag;
 static gboolean follow_nmea_flag;
+static gboolean follow_gnss_measurement_report_flag;
+static gboolean follow_gnss_sv_poly_report_flag;
 static gboolean delete_assistance_data_flag;
 static gboolean get_nmea_types_flag;
 static gchar   *set_nmea_types_str;
+static gchar   *set_gnss_constellation_report_config_str;
 static gboolean get_operation_mode_flag;
 static gchar   *set_operation_mode_str;
 static gboolean get_engine_lock_flag;
@@ -124,11 +130,11 @@ static GOptionEntry entries[] = {
         NULL,
     },
 #endif
-#if (defined HAVE_QMI_INDICATION_LOC_POSITION_REPORT || defined HAVE_QMI_INDICATION_LOC_GNSS_SV_INFO) && \
+#if (defined HAVE_QMI_INDICATION_LOC_POSITION_REPORT || defined HAVE_QMI_INDICATION_LOC_GNSS_SV_INFO || defined HAVE_QMI_INDICATION_LOC_GNSS_MEASUREMENT_REPORT || defined HAVE_QMI_INDICATION_LOC_GNSS_SV_POLY_REPORT) && \
     defined HAVE_QMI_MESSAGE_LOC_REGISTER_EVENTS
     {
         "loc-timeout", 0, 0, G_OPTION_ARG_INT, &timeout,
-        "Maximum time to wait for information in `--loc-get-position-report' and `--loc-get-gnss-sv-info' (default 30s)",
+        "Maximum time to wait for information in `--loc-get-position-report', `--loc-get-gnss-measurement-report', `--loc-get-sv-poly-report' and `--loc-get-gnss-sv-info' (default 30s)",
         "[SECS]",
     },
 #endif
@@ -153,6 +159,20 @@ static GOptionEntry entries[] = {
         NULL,
     },
 #endif
+#if defined HAVE_QMI_INDICATION_LOC_GNSS_MEASUREMENT_REPORT && defined HAVE_QMI_MESSAGE_LOC_REGISTER_EVENTS
+    {
+        "loc-follow-gnss-measurement-report", 0, 0, G_OPTION_ARG_NONE, &follow_gnss_measurement_report_flag,
+        "Follow all GNSS measurements updates reported by the location module indefinitely",
+        NULL,
+    },
+#endif
+#if defined HAVE_QMI_INDICATION_LOC_GNSS_SV_POLY_REPORT && defined HAVE_QMI_MESSAGE_LOC_REGISTER_EVENTS
+    {
+        "loc-follow-gnss-sv-poly-report", 0, 0, G_OPTION_ARG_NONE, &follow_gnss_sv_poly_report_flag,
+        "Follow all GNSS ephemeris updates reported by the location module indefinitely",
+        NULL,
+    },
+#endif
 #if defined HAVE_QMI_MESSAGE_LOC_DELETE_ASSISTANCE_DATA
     {
         "loc-delete-assistance-data", 0, 0, G_OPTION_ARG_NONE, &delete_assistance_data_flag,
@@ -168,6 +188,12 @@ static GOptionEntry entries[] = {
 #endif
 #if defined HAVE_QMI_MESSAGE_LOC_SET_NMEA_TYPES
     { "loc-set-nmea-types", 0, 0, G_OPTION_ARG_STRING, &set_nmea_types_str,
+      "Set list of enabled NMEA traces",
+      "[type1|type2|type3...]"
+    },
+#endif
+#if defined HAVE_QMI_MESSAGE_LOC_SET_GNSS_CONSTELLATION_REPORT_CONFIG
+    { "loc-set-gnss-constellation-report-config", 0, 0, G_OPTION_ARG_STRING, &set_gnss_constellation_report_config_str,
       "Set list of enabled NMEA traces",
       "[type1|type2|type3...]"
     },
@@ -234,7 +260,7 @@ qmicli_loc_options_enabled (void)
      *  - Follow updates indefinitely, including either position, satellite info or NMEA traces.
      *  - Other single-request operations.
      */
-    follow_action = !!(follow_position_report_flag + follow_gnss_sv_info_flag + follow_nmea_flag);
+    follow_action = !!(follow_position_report_flag + follow_gnss_sv_info_flag + follow_nmea_flag + follow_gnss_measurement_report_flag + follow_gnss_sv_poly_report_flag);
     n_actions = (start_flag +
                  stop_flag +
                  get_position_report_flag +
@@ -243,6 +269,7 @@ qmicli_loc_options_enabled (void)
                  delete_assistance_data_flag +
                  get_nmea_types_flag +
                  !!set_nmea_types_str +
+                 !!set_gnss_constellation_report_config_str +
                  get_operation_mode_flag +
                  !!set_operation_mode_str +
                  get_engine_lock_flag +
@@ -277,6 +304,7 @@ qmicli_loc_options_enabled (void)
         delete_assistance_data_flag ||
         get_nmea_types_flag ||
         set_nmea_types_str ||
+        set_gnss_constellation_report_config_str ||
         get_operation_mode_flag ||
         set_operation_mode_str ||
         get_engine_lock_flag ||
@@ -304,6 +332,12 @@ context_free (Context *context)
 
     if (context->nmea_indication_id)
         g_signal_handler_disconnect (context->client, context->nmea_indication_id);
+
+    if (context->gnss_measurement_report_indication_id)
+        g_signal_handler_disconnect (context->client, context->gnss_measurement_report_indication_id);
+
+    if (context->gnss_sv_poly_report_indication_id)
+        g_signal_handler_disconnect (context->client, context->gnss_sv_poly_report_indication_id);
 
     if (context->delete_assistance_data_indication_id)
         g_signal_handler_disconnect (context->client, context->delete_assistance_data_indication_id);
@@ -341,7 +375,9 @@ operation_shutdown (gboolean operation_status)
 
 #if (defined HAVE_QMI_INDICATION_LOC_POSITION_REPORT || \
      defined HAVE_QMI_INDICATION_LOC_GNSS_SV_INFO ||    \
-     defined HAVE_QMI_INDICATION_LOC_NMEA) &&           \
+     defined HAVE_QMI_INDICATION_LOC_NMEA ||            \
+     defined HAVE_QMI_INDICATION_LOC_GNSS_MEASUREMENT_REPORT || \
+     defined HAVE_QMI_INDICATION_LOC_GNSS_SV_POLY_REPORT) && \
     defined HAVE_QMI_MESSAGE_LOC_REGISTER_EVENTS
 
 static void monitoring_step_run (void);
@@ -366,7 +402,7 @@ monitoring_cancelled (GCancellable *cancellable)
     }
 
     /* For FOLLOW operations, silently exit */
-    if (follow_position_report_flag || follow_gnss_sv_info_flag || follow_nmea_flag) {
+    if (follow_position_report_flag || follow_gnss_sv_info_flag || follow_nmea_flag || follow_gnss_measurement_report_flag || follow_gnss_sv_poly_report_flag) {
         operation_shutdown (TRUE);
         return;
     }
@@ -376,7 +412,9 @@ monitoring_cancelled (GCancellable *cancellable)
 
 #endif /* HAVE_QMI_INDICATION_LOC_POSITION_REPORT
         * HAVE_QMI_INDICATION_LOC_GNSS_SV_INFO
-        * HAVE_QMI_INDICATION_LOC_NMEA */
+        * HAVE_QMI_INDICATION_LOC_NMEA
+        * HAVE_QMI_INDICATION_LOC_GNSS_MEASUREMENT_REPORT
+        * HAVE_QMI_INDICATION_LOC_GNSS_SV_POLY_REPORT */
 
 #if defined HAVE_QMI_INDICATION_LOC_NMEA && defined HAVE_QMI_MESSAGE_LOC_REGISTER_EVENTS
 
@@ -671,9 +709,45 @@ position_report_received (QmiClientLoc                         *client,
 
 #endif /* HAVE_QMI_INDICATION_LOC_POSITION_REPORT */
 
+#if defined HAVE_QMI_INDICATION_LOC_GNSS_MEASUREMENT_REPORT && defined HAVE_QMI_MESSAGE_LOC_REGISTER_EVENTS
+
+static void
+gnss_measurement_report_received (QmiClientLoc                                *client,
+                                  QmiIndicationLocGnssMeasurementReportOutput *output)
+{
+    guint32 aux32;
+
+    g_print ("GNSS_MEASUREMENT_REPORT\n");
+    if (qmi_indication_loc_gnss_measurement_report_output_get_system(output, &aux32, NULL))
+        g_print ("System: %d\n", aux32);
+    else
+        g_print ("System: n/a\n");
+}
+
+#endif /* HAVE_QMI_INDICATION_LOC_GNSS_MEASUREMENT_REPORT */
+
+#if defined HAVE_QMI_INDICATION_LOC_GNSS_SV_POLY_REPORT && defined HAVE_QMI_MESSAGE_LOC_REGISTER_EVENTS
+
+static void
+gnss_sv_poly_report_received (QmiClientLoc                           *client,
+                              QmiIndicationLocGnssSvPolyReportOutput *output)
+{
+    guint16 aux16;
+
+    g_print ("GNSS_SV_POLY_REPORT\n");
+    if (qmi_indication_loc_gnss_sv_poly_report_output_get_gnss_sv_id(output, &aux16, NULL))
+        g_print ("SV ID: %d\n", aux16);
+    else
+        g_print ("SV ID: n/a\n");
+}
+
+#endif /* HAVE_QMI_INDICATION_LOC_GNSS_SV_POLY_REPORT */
+
 #if (defined HAVE_QMI_INDICATION_LOC_POSITION_REPORT || \
      defined HAVE_QMI_INDICATION_LOC_GNSS_SV_INFO ||    \
-     defined HAVE_QMI_INDICATION_LOC_NMEA) && \
+     defined HAVE_QMI_INDICATION_LOC_NMEA ||            \
+     defined HAVE_QMI_INDICATION_LOC_GNSS_MEASUREMENT_REPORT || \
+     defined HAVE_QMI_INDICATION_LOC_GNSS_SV_POLY_REPORT) && \
     defined HAVE_QMI_MESSAGE_LOC_REGISTER_EVENTS
 
 static void
@@ -703,9 +777,27 @@ monitoring_step_ongoing (void)
                                                     NULL);
 #endif
 
+#if defined HAVE_QMI_INDICATION_LOC_GNSS_MEASUREMENT_REPORT
+    if (follow_gnss_measurement_report_flag)
+        ctx->gnss_measurement_report_indication_id = g_signal_connect (ctx->client,
+                                                            "gnss-measurement-report",
+                                                            G_CALLBACK (gnss_measurement_report_received),
+                                                            NULL);
+#endif
+
+#if defined HAVE_QMI_INDICATION_LOC_GNSS_SV_POLY_REPORT
+    if (follow_gnss_sv_poly_report_flag)
+        ctx->gnss_sv_poly_report_indication_id = g_signal_connect (ctx->client,
+                                                            "gnss-sv-poly-report",
+                                                            G_CALLBACK (gnss_sv_poly_report_received),
+                                                            NULL);
+#endif
+
     g_assert (ctx->position_report_indication_id ||
               ctx->gnss_sv_info_indication_id ||
-              ctx->nmea_indication_id);
+              ctx->nmea_indication_id ||
+              ctx->gnss_measurement_report_indication_id ||
+              ctx->gnss_sv_poly_report_indication_id);
 }
 
 static void
@@ -777,6 +869,12 @@ monitoring_step_register_events (void)
     if (follow_nmea_flag)
         indication_mask |= QMI_LOC_EVENT_REGISTRATION_FLAG_NMEA;
 
+    if (follow_gnss_measurement_report_flag)
+        indication_mask |= QMI_LOC_EVENT_REGISTRATION_FLAG_GNSS_MEASUREMENT_REPORT;
+
+    if (follow_gnss_sv_poly_report_flag)
+        indication_mask |= QMI_LOC_EVENT_REGISTRATION_FLAG_GNSS_SV_POLY_REPORT;
+
     g_assert (indication_mask);
 
     re_input = qmi_message_loc_register_events_input_new ();
@@ -818,7 +916,9 @@ monitoring_step_run (void)
 
 #endif /* HAVE_QMI_INDICATION_LOC_POSITION_REPORT
         * HAVE_QMI_INDICATION_LOC_GNSS_SV_INFO
-        * HAVE_QMI_INDICATION_LOC_NMEA */
+        * HAVE_QMI_INDICATION_LOC_NMEA
+        * HAVE_QMI_INDICATION_LOC_GNSS_MEASUREMENT_REPORT
+        * HAVE_QMI_INDICATION_LOC_GNSS_SV_POLY_REPORT */
 
 #if defined HAVE_QMI_MESSAGE_LOC_DELETE_ASSISTANCE_DATA
 
@@ -1038,6 +1138,98 @@ set_nmea_types_input_create (const gchar *str)
 }
 
 #endif /* HAVE_QMI_MESSAGE_LOC_SET_NMEA_TYPES */
+
+#if defined HAVE_QMI_MESSAGE_LOC_SET_GNSS_CONSTELLATION_REPORT_CONFIG
+
+static gboolean
+set_gnss_constellation_report_config_timed_out (void)
+{
+    ctx->timeout_id = 0;
+    g_printerr ("error: operation failed: timeout\n");
+    operation_shutdown (FALSE);
+    return G_SOURCE_REMOVE;
+}
+
+static void
+set_gnss_constellation_report_config_received (QmiClientLoc                                           *client,
+                                               QmiIndicationLocSetGnssConstellationReportConfigOutput *output)
+{
+    QmiLocIndicationStatus status;
+    g_autoptr(GError)      error = NULL;
+
+    if (!qmi_indication_loc_set_gnss_constellation_report_config_output_get_indication_status (output, &status, &error)) {
+        g_printerr ("error: couldn't set GNSS constellation report config: %s\n", error->message);
+        operation_shutdown (FALSE);
+        return;
+    }
+
+    g_print ("Successfully set GNSS constellation report config\n");
+    operation_shutdown (TRUE);
+}
+
+static void
+set_gnss_constellation_report_config_ready (QmiClientLoc *client,
+                                            GAsyncResult *res)
+{
+    g_autoptr(QmiMessageLocSetGnssConstellationReportConfigOutput) output = NULL;
+    g_autoptr(GError)                                              error = NULL;
+
+    output = qmi_client_loc_set_gnss_constellation_report_config_finish (client, res, &error);
+    if (!output) {
+        g_printerr ("error: operation failed: %s\n", error->message);
+        operation_shutdown (FALSE);
+        return;
+    }
+
+    if (!qmi_message_loc_set_gnss_constellation_report_config_output_get_result (output, &error)) {
+        g_printerr ("error: could not set GNSS constellation report config: %s\n", error->message);
+        operation_shutdown (FALSE);
+        return;
+    }
+
+    /* Wait for response asynchronously */
+    ctx->timeout_id = g_timeout_add_seconds (timeout > 0 ? timeout : DEFAULT_LOC_TIMEOUT_SECS,
+                                             (GSourceFunc) set_gnss_constellation_report_config_timed_out,
+                                             NULL);
+
+    ctx->set_gnss_constellation_report_config_indication_id = g_signal_connect (ctx->client,
+                                                                                "set-gnss-constellation-report-config",
+                                                                                G_CALLBACK (set_gnss_constellation_report_config_received),
+                                                                                NULL);
+}
+
+static QmiMessageLocSetGnssConstellationReportConfigInput *
+set_gnss_constellation_report_config_create (const gchar *str)
+{
+    g_autoptr(QmiMessageLocSetGnssConstellationReportConfigInput) input = NULL;
+    g_autoptr(GError)                                             error = NULL;
+
+    input = qmi_message_loc_set_gnss_constellation_report_config_input_new ();
+    // TODO: currently hard-coded, set from input string
+    if (!qmi_message_loc_set_gnss_constellation_report_config_input_set_measurement_report_config_valid (input, TRUE, &error)) {
+        g_printerr ("error: couldn't create input data bundle: '%s'\n", error->message);
+        return NULL;
+    }
+    // TODO: currently hard-coded, set from input string
+    if (!qmi_message_loc_set_gnss_constellation_report_config_input_set_measurement_report_config (input, QMI_LOC_GNSS_REPORT_CONSTELLATION_GPS, &error)) {
+        g_printerr ("error: couldn't create input data bundle: '%s'\n", error->message);
+        return NULL;
+    }
+    // TODO: currently hard-coded, set from input string
+    if (!qmi_message_loc_set_gnss_constellation_report_config_input_set_sv_poly_report_config_valid (input, TRUE, &error)) {
+        g_printerr ("error: couldn't create input data bundle: '%s'\n", error->message);
+        return NULL;
+    }
+    // TODO: currently hard-coded, set from input string
+    if (!qmi_message_loc_set_gnss_constellation_report_config_input_set_sv_poly_report_config (input, QMI_LOC_GNSS_REPORT_CONSTELLATION_GPS, &error)) {
+        g_printerr ("error: couldn't create input data bundle: '%s'\n", error->message);
+        return NULL;
+    }
+
+    return g_steal_pointer (&input);
+}
+
+#endif /* HAVE_QMI_MESSAGE_LOC_SET_GNSS_CONSTELLATION_REPORT_CONFIG */
 
 #if defined HAVE_QMI_MESSAGE_LOC_GET_OPERATION_MODE
 
@@ -1505,6 +1697,26 @@ qmicli_loc_run (QmiDevice    *device,
     }
 #endif
 
+#if defined HAVE_QMI_MESSAGE_LOC_SET_GNSS_CONSTELLATION_REPORT_CONFIG
+    if (set_gnss_constellation_report_config_str) {
+        g_autoptr(QmiMessageLocSetGnssConstellationReportConfigInput) input = NULL;
+
+        g_debug ("Asynchronously setting GNSS constellation report config...");
+        input = set_gnss_constellation_report_config_create (set_gnss_constellation_report_config_str);
+        if (!input) {
+            operation_shutdown (FALSE);
+            return;
+        }
+        qmi_client_loc_set_gnss_constellation_report_config (ctx->client,
+                                                             input,
+                                                             10,
+                                                             ctx->cancellable,
+                                                             (GAsyncReadyCallback)set_gnss_constellation_report_config_ready,
+                                                             NULL);
+        return;
+    }
+#endif
+
 #if defined HAVE_QMI_MESSAGE_LOC_GET_OPERATION_MODE
     if (get_operation_mode_flag) {
         qmi_client_loc_get_operation_mode (ctx->client,
@@ -1571,9 +1783,11 @@ qmicli_loc_run (QmiDevice    *device,
 
 #if (defined HAVE_QMI_INDICATION_LOC_POSITION_REPORT || \
      defined HAVE_QMI_INDICATION_LOC_GNSS_SV_INFO ||    \
-     defined HAVE_QMI_INDICATION_LOC_NMEA) &&           \
+     defined HAVE_QMI_INDICATION_LOC_NMEA ||            \
+     defined HAVE_QMI_INDICATION_LOC_GNSS_MEASUREMENT_REPORT || \
+     defined HAVE_QMI_INDICATION_LOC_GNSS_SV_POLY_REPORT) &&           \
     defined HAVE_QMI_MESSAGE_LOC_REGISTER_EVENTS
-    if (get_position_report_flag || get_gnss_sv_info_flag || follow_position_report_flag || follow_gnss_sv_info_flag || follow_nmea_flag) {
+    if (get_position_report_flag || get_gnss_sv_info_flag || follow_position_report_flag || follow_gnss_sv_info_flag || follow_nmea_flag || follow_gnss_measurement_report_flag || follow_gnss_sv_poly_report_flag) {
         /* All the remaining actions require monitoring */
         ctx->monitoring_step = MONITORING_STEP_FIRST;
         monitoring_step_run ();

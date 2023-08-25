@@ -489,6 +489,28 @@ typedef enum { /*< since=1.26 >*/
 } QmiLocNmeaType;
 
 /**
+ * QmiLocGnssReportConstellation:
+ * @QMI_LOC_GNSS_REPORT_CONSTELLATION_GPS: Enable GPS reports.
+ * @QMI_LOC_GNSS_REPORT_CONSTELLATION_GLONASS: Enable GLONASS reports.
+ * @QMI_LOC_GNSS_REPORT_CONSTELLATION_BEIDOU: Enable BEIDOU reports.
+ * @QMI_LOC_GNSS_REPORT_CONSTELLATION_GALILEO: Enable GALILEO reports.
+ * @QMI_LOC_GNSS_REPORT_CONSTELLATION_QZSS: Enable QZSS reports.
+ * @QMI_LOC_GNSS_REPORT_CONSTELLATION_ALL: Enable all supported reports.
+ *
+ * Constellation that may be enabled for the GNSS measurement report and the SV polynomial report.
+ *
+ * Since: 9.99
+ */
+typedef enum { /*< since=9.99 >*/
+    QMI_LOC_GNSS_REPORT_CONSTELLATION_GPS     = 1 << 0,
+    QMI_LOC_GNSS_REPORT_CONSTELLATION_GLONASS = 1 << 1,
+    QMI_LOC_GNSS_REPORT_CONSTELLATION_BEIDOU  = 1 << 2,
+    QMI_LOC_GNSS_REPORT_CONSTELLATION_GALILEO = 1 << 3,
+    QMI_LOC_GNSS_REPORT_CONSTELLATION_QZSS    = 1 << 4,
+    QMI_LOC_GNSS_REPORT_CONSTELLATION_ALL     = 0x0000FFFF,
+} QmiLocGnssReportConstellation;
+
+/**
  * QmiLocLockType:
  * @QMI_LOC_LOCK_TYPE_NONE: Do not lock any position sessions.
  * @QMI_LOC_LOCK_TYPE_MI: Lock mobile-initiated position sessions.
