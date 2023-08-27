@@ -1206,22 +1206,12 @@ set_gnss_constellation_report_config_create (const gchar *str)
 
     input = qmi_message_loc_set_gnss_constellation_report_config_input_new ();
     // TODO: currently hard-coded, set from input string
-    if (!qmi_message_loc_set_gnss_constellation_report_config_input_set_measurement_report_config_valid (input, TRUE, &error)) {
+    if (!qmi_message_loc_set_gnss_constellation_report_config_input_set_measurement_report_config (input, QMI_LOC_GNSS_REPORT_CONSTELLATION_ALL, &error)) {
         g_printerr ("error: couldn't create input data bundle: '%s'\n", error->message);
         return NULL;
     }
     // TODO: currently hard-coded, set from input string
-    if (!qmi_message_loc_set_gnss_constellation_report_config_input_set_measurement_report_config (input, QMI_LOC_GNSS_REPORT_CONSTELLATION_GPS, &error)) {
-        g_printerr ("error: couldn't create input data bundle: '%s'\n", error->message);
-        return NULL;
-    }
-    // TODO: currently hard-coded, set from input string
-    if (!qmi_message_loc_set_gnss_constellation_report_config_input_set_sv_poly_report_config_valid (input, TRUE, &error)) {
-        g_printerr ("error: couldn't create input data bundle: '%s'\n", error->message);
-        return NULL;
-    }
-    // TODO: currently hard-coded, set from input string
-    if (!qmi_message_loc_set_gnss_constellation_report_config_input_set_sv_poly_report_config (input, QMI_LOC_GNSS_REPORT_CONSTELLATION_GPS, &error)) {
+    if (!qmi_message_loc_set_gnss_constellation_report_config_input_set_sv_poly_report_config (input, QMI_LOC_GNSS_REPORT_CONSTELLATION_ALL, &error)) {
         g_printerr ("error: couldn't create input data bundle: '%s'\n", error->message);
         return NULL;
     }
