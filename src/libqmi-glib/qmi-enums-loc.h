@@ -489,6 +489,24 @@ typedef enum { /*< since=1.26 >*/
 } QmiLocNmeaType;
 
 /**
+ * QmiLocLockType:
+ * @QMI_LOC_LOCK_TYPE_NONE: Do not lock any position sessions.
+ * @QMI_LOC_LOCK_TYPE_MI: Lock mobile-initiated position sessions.
+ * @QMI_LOC_LOCK_TYPE_MT: Lock mobile-terminated position sessions.
+ * @QMI_LOC_LOCK_TYPE_ALL: Lock all position sessions.
+ *
+ * Location engine lock type.
+ *
+ * Since: 1.28
+ */
+typedef enum { /*< since=1.28 >*/
+    QMI_LOC_LOCK_TYPE_NONE = 1,
+    QMI_LOC_LOCK_TYPE_MI   = 2,
+    QMI_LOC_LOCK_TYPE_MT   = 3,
+    QMI_LOC_LOCK_TYPE_ALL  = 4,
+} QmiLocLockType;
+
+/**
  * QmiLocGnssReportConstellation:
  * @QMI_LOC_GNSS_REPORT_CONSTELLATION_GPS: Enable GPS reports.
  * @QMI_LOC_GNSS_REPORT_CONSTELLATION_GLONASS: Enable GLONASS reports.
@@ -511,21 +529,113 @@ typedef enum { /*< since=9.99 >*/
 } QmiLocGnssReportConstellation;
 
 /**
- * QmiLocLockType:
- * @QMI_LOC_LOCK_TYPE_NONE: Do not lock any position sessions.
- * @QMI_LOC_LOCK_TYPE_MI: Lock mobile-initiated position sessions.
- * @QMI_LOC_LOCK_TYPE_MT: Lock mobile-terminated position sessions.
- * @QMI_LOC_LOCK_TYPE_ALL: Lock all position sessions.
+ * QmiLocSvSearchState
+ * @QMI_LOC_SV_STATUS_IDLE: Satellite is not being used.
+ * @QMI_LOC_SV_STATUS_SEARCH: Satellite is being searched for.
+ * @QMI_LOC_SV_STATUS_TRACK: Satellite is being tracked.
  *
- * Location engine lock type.
+ * Satellite search state.
  *
- * Since: 1.28
+ * Since: 9.99
  */
-typedef enum { /*< since=1.28 >*/
-    QMI_LOC_LOCK_TYPE_NONE = 1,
-    QMI_LOC_LOCK_TYPE_MI   = 2,
-    QMI_LOC_LOCK_TYPE_MT   = 3,
-    QMI_LOC_LOCK_TYPE_ALL  = 4,
-} QmiLocLockType;
+typedef enum { /*< since=9.99 >*/
+    QMI_LOC_SV_STATUS_IDLE   = 1,
+    QMI_LOC_SV_STATUS_SEARCH = 2,
+    QMI_LOC_SV_STATUS_TRACK  = 3,
+} QmiLocSvSearchState;
+
+/**
+ * QmiLocSvMeasFieldsValidMask
+ * @QMI_LOC_SV_HEALTH_VALID: Satellite health information is valid.
+ * @QMI_LOC_SV_MULTIPATH_EST_VALID: Satellite multipath estimate is valid.
+ * @QMI_LOC_SV_FINE_SPEED_VALID: Satellite fine speed is valid
+ * @QMI_LOC_SV_FINE_SPEED_UNC_VALID: Satellite fine speed uncertainty is valid
+ * @QMI_LOC_SV_CARRIER_PHASE_VALID: Satellite carrier phase is valid
+ * @QMI_LOC_SV_SV_DIRECTION_VALID: Satellite direction information is valid
+ * @QMI_LOC_SV_CYCLESLIP_COUNT_VALID: Cycle slip count information is valid
+ * @QMI_LOC_SV_LOSSOFLOCK_VALID: Loss of lock information is valid
+ *
+ * Satellite measurement field validity mask.
+ *
+ * Since: 9.99
+ */
+typedef enum { /*< since=9.99 >*/
+    QMI_LOC_SV_HEALTH_VALID          = 1 << 0,
+    QMI_LOC_SV_MULTIPATH_EST_VALID   = 1 << 1,
+    QMI_LOC_SV_FINE_SPEED_VALID      = 1 << 2,
+    QMI_LOC_SV_FINE_SPEED_UNC_VALID  = 1 << 3,
+    QMI_LOC_SV_CARRIER_PHASE_VALID   = 1 << 4,
+    QMI_LOC_SV_SV_DIRECTION_VALID    = 1 << 5,
+    QMI_LOC_SV_CYCLESLIP_COUNT_VALID = 1 << 6,
+    QMI_LOC_SV_LOSSOFLOCK_VALID      = 1 << 7,
+} QmiLocSvMeasFieldsValidMask;
+
+/**
+ * QmiLocSvInfoMask
+ * @QMI_LOC_SVINFO_MASK_HAS_EPHEMERIS: Satellite ephemeris is available.
+ * @QMI_LOC_SVINFO_MASK_HAS_ALMANAC: Satellite almanac is available.
+ *
+ * Satellite info validity.
+ *
+ * Since: 9.99
+ */
+typedef enum { /*< since=9.99 >*/
+    QMI_LOC_SVINFO_MASK_HAS_EPHEMERIS = 1,
+    QMI_LOC_SVINFO_MASK_HAS_ALMANAC   = 2,
+} QmiLocSvInfoMask;
+
+/**
+ * QmiLocSvMeasStatusValidMask
+ * @QMI_LOC_MASK_MEAS_STATUS_SM_STAT_VALID: Satellite fractional millisecond time (code-phase) status is valid.
+ * @QMI_LOC_MASK_MEAS_STATUS_SB_STAT_VALID: Satellite sub-bit time status is vaild.
+ * @QMI_LOC_MASK_MEAS_STATUS_MS_STAT_VALID: Satellite integral milliseconds time status is valid.
+ * @QMI_LOC_MASK_MEAS_STATUS_BE_CONFIRM_STAT_VALID: Signal bit edge confirmation status is valid.
+ * @QMI_LOC_MASK_MEAS_STATUS_VEL_STAT_VALID: Satellite doppler measured status is valid.
+ * @QMI_LOC_MASK_MEAS_STATUS_VEL_FINE_STAT_VALID: Fine/coarse doppler measurement indicator status is valid.
+ * @QMI_LOC_MASK_MEAS_STATUS_FROM_RNG_DIFF_STAT_VALID: Range update from satellite differences status is valid.
+ * @QMI_LOC_MASK_MEAS_STATUS_FROM_VE_DIFF_STAT_VALID: Doppler update from satellite differences status is valid.
+ *
+ * A bit mask indicating the satellite measurement status validity.
+ * Additionally, MSB 0xFFC0000000000000 bits indicate the validity of DONT_USE bits.
+ *
+ * Since: 9.99
+ */
+typedef enum { /*< since=9.99 >*/
+    QMI_LOC_MASK_MEAS_STATUS_SM_STAT_VALID            = 1 << 0,
+    QMI_LOC_MASK_MEAS_STATUS_SB_STAT_VALID            = 1 << 1,
+    QMI_LOC_MASK_MEAS_STATUS_MS_STAT_VALID            = 1 << 2,
+    QMI_LOC_MASK_MEAS_STATUS_BE_CONFIRM_STAT_VALID    = 1 << 3,
+    QMI_LOC_MASK_MEAS_STATUS_VEL_STAT_VALID           = 1 << 4,
+    QMI_LOC_MASK_MEAS_STATUS_VEL_FINE_STAT_VALID      = 1 << 5,
+    QMI_LOC_MASK_MEAS_STATUS_FROM_RNG_DIFF_STAT_VALID = 1 << 9,
+    QMI_LOC_MASK_MEAS_STATUS_FROM_VE_DIFF_STAT_VALID  = 1 << 10,
+} QmiLocSvMeasStatusValidMask;
+
+/**
+ * QmiLocSvMeasStatusMask
+ * @QMI_LOC_MASK_MEAS_STATUS_SM_STAT: Satellite fractional millisecond time (code-phase) status.
+ * @QMI_LOC_MASK_MEAS_STATUS_SB_STAT: Satellite sub-bit time status.
+ * @QMI_LOC_MASK_MEAS_STATUS_MS_STAT: Satellite integral milliseconds time status.
+ * @QMI_LOC_MASK_MEAS_STATUS_BE_CONFIRM_STAT: Signal bit edge confirmation status.
+ * @QMI_LOC_MASK_MEAS_STATUS_VEL_STAT: Satellite doppler measured is valid.
+ * @QMI_LOC_MASK_MEAS_STATUS_VEL_FINE_STAT: Fine/coarse doppler measurement indicator status.
+ * @QMI_LOC_MASK_MEAS_STATUS_FROM_RNG_DIFF_STAT: Range update from satellite differences status.
+ * @QMI_LOC_MASK_MEAS_STATUS_FROM_VE_DIFF_STAT: Doppler update from satellite differences status.
+ *
+ * A bit mask indicating the satellite measurement status.
+ * If any MSB bit in 0xFFC0000000000000 DONT_USE is set, the measurement must not be used by the client.
+ *
+ * Since: 9.99
+ */
+typedef enum { /*< since=9.99 >*/
+    QMI_LOC_MASK_MEAS_STATUS_SM_STAT            = 1 << 0,
+    QMI_LOC_MASK_MEAS_STATUS_SB_STAT            = 1 << 1,
+    QMI_LOC_MASK_MEAS_STATUS_MS_STAT            = 1 << 2,
+    QMI_LOC_MASK_MEAS_STATUS_BE_CONFIRM_STAT    = 1 << 3,
+    QMI_LOC_MASK_MEAS_STATUS_VEL_STAT           = 1 << 4,
+    QMI_LOC_MASK_MEAS_STATUS_VEL_FINE_STAT      = 1 << 5,
+    QMI_LOC_MASK_MEAS_STATUS_FROM_RNG_DIFF_STAT = 1 << 9,
+    QMI_LOC_MASK_MEAS_STATUS_FROM_VE_DIFF_STAT  = 1 << 10,
+} QmiLocSvMeasStatusMask;
 
 #endif /* _LIBQMI_GLIB_QMI_ENUMS_LOC_H_ */
