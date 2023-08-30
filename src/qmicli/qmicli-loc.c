@@ -34,6 +34,15 @@
 #include "qmicli.h"
 #include "qmicli-helpers.h"
 
+#include <time.h>
+gdouble get_time(void);
+gdouble get_time(void) {
+  struct timespec spec;
+
+  clock_gettime(CLOCK_REALTIME, &spec);
+  return spec.tv_sec + (spec.tv_nsec * 1e-9);
+}
+
 #if defined HAVE_QMI_SERVICE_LOC
 
 #undef VALIDATE_MASK_NONE
@@ -715,13 +724,46 @@ static void
 gnss_measurement_report_received (QmiClientLoc                                *client,
                                   QmiIndicationLocGnssMeasurementReportOutput *output)
 {
-    guint32 aux32;
+    guint32  aux32;
+    GArray   *sv_measurements = NULL;
+    guint32 system = 0;
+    guint16 week = 0;
+    guint32 tow = 0;
+    gfloat towb = 0;
+    gfloat towbu = 0;
+    guint    i, num_sv_measurements;
+    gboolean valid;
 
-    g_print ("GNSS_MEASUREMENT_REPORT\n");
+    g_print ("%f\n", get_time());
     if (qmi_indication_loc_gnss_measurement_report_output_get_system(output, &aux32, NULL))
-        g_print ("System: %d\n", aux32);
+        g_print ("[gnss_measurement_report] System: %d\n", aux32);
     else
-        g_print ("System: n/a\n");
+        g_print ("[gnss_measurement_report] System: n/a\n");
+
+    if (qmi_indication_loc_gnss_measurement_report_output_get_system_time (output, &system, &week, &tow, &towb, &towbu, NULL))
+        g_print ("[gnss_measurement_report] System %d Time: %d (week) %d ms (time of week) %f ms (bias) %f ms (bias uncertainty)\n", system, week, tow, (gdouble)towb, (gdouble)towbu);
+    else
+        g_print ("[gnss_measurement_report] System Time: n/a\n");
+
+
+    qmi_indication_loc_gnss_measurement_report_output_get_sv_measurements (output, &sv_measurements, NULL);
+
+    num_sv_measurements = sv_measurements ? sv_measurements->len : 0;
+    g_print ("[gnss sv info] %d satellites detected:\n", num_sv_measurements);
+    for (i = 0; i < num_sv_measurements; i++) {
+        QmiIndicationLocGnssMeasurementReportOutputSvMeasurementsElement *element;
+
+        element = &g_array_index (sv_measurements, QmiIndicationLocGnssMeasurementReportOutputSvMeasurementsElement, i);
+        g_print ("   [measurement #%u]\n", i);
+        g_print ("      satellite id:  %u\n", element->gnss_sv_id);
+        g_print ("      health status: %s\n", (element->validity_mask & QMI_LOC_SV_HEALTH_VALID) ? qmi_loc_health_status_get_string (element->health_status) : "n/a");
+        valid = element->measurement_status_valid_mask & QMI_LOC_MASK_MEAS_STATUS_MS_STAT_VALID && element->measurement_status_mask & QMI_LOC_MASK_MEAS_STATUS_MS_STAT;
+        g_print ("      integral time (ms):    %d\n", valid ? element->time_integral_ms : 0);
+        valid = element->measurement_status_valid_mask & QMI_LOC_MASK_MEAS_STATUS_SM_STAT_VALID && element->measurement_status_mask & QMI_LOC_MASK_MEAS_STATUS_SM_STAT;
+        g_print ("      fractional time (ms):  %f\n", valid ? (gdouble)element->time_fractional_ms : 0);
+        // TODO check for validity
+        g_print ("      time uncertainty (ms): %f\n", (gdouble)element->time_uncertainty_ms);
+    }
 }
 
 #endif /* HAVE_QMI_INDICATION_LOC_GNSS_MEASUREMENT_REPORT */

@@ -529,6 +529,30 @@ typedef enum { /*< since=9.99 >*/
 } QmiLocGnssReportConstellation;
 
 /**
+ * QmiLocSvSystem:
+ * @QMI_LOC_SV_SYSTEM_GPS: GPS satellite
+ * @QMI_LOC_SV_SYSTEM_GALILEO: GALILEO satellite
+ * @QMI_LOC_SV_SYSTEM_SBAS: SBAS satellite
+ * @QMI_LOC_SV_SYSTEM_COMPASS: COMPASS satellite (Deprecated)
+ * @QMI_LOC_SV_SYSTEM_GLONASS: GLONASS satellite
+ * @QMI_LOC_SV_SYSTEM_BDS: BDS satellite
+ * @QMI_LOC_SV_SYSTEM_QZSS: QZSS satellite
+ *
+ * Satellite system constellation
+ *
+ * Since: 9.99
+ */
+typedef enum { /*< since=9.99 >*/
+    QMI_LOC_SV_SYSTEM_GPS     = 1,
+    QMI_LOC_SV_SYSTEM_GALILEO = 2,
+    QMI_LOC_SV_SYSTEM_SBAS    = 3,
+    QMI_LOC_SV_SYSTEM_COMPASS = 4,
+    QMI_LOC_SV_SYSTEM_GLONASS = 5,
+    QMI_LOC_SV_SYSTEM_BDS     = 6,
+    QMI_LOC_SV_SYSTEM_QZSS    = 7,
+} QmiLocSvSystem;
+
+/**
  * QmiLocSvSearchState
  * @QMI_LOC_SV_STATUS_IDLE: Satellite is not being used.
  * @QMI_LOC_SV_STATUS_SEARCH: Satellite is being searched for.
