@@ -1650,7 +1650,8 @@ qmicli_loc_run (QmiDevice    *device,
         input = qmi_message_loc_start_input_new ();
         qmi_message_loc_start_input_set_session_id (input, (guint8) session_id, NULL);
         qmi_message_loc_start_input_set_intermediate_report_state (input, QMI_LOC_INTERMEDIATE_REPORT_STATE_ENABLE, NULL);
-        qmi_message_loc_start_input_set_minimum_interval_between_position_reports (input, 1000, NULL);
+        qmi_message_loc_start_input_set_minimum_interval_between_final_position_reports (input, 250, NULL);
+        qmi_message_loc_start_input_set_minimum_interval_between_intermediate_position_reports (input, 250, NULL);
         qmi_message_loc_start_input_set_fix_recurrence_type (input, QMI_LOC_FIX_RECURRENCE_TYPE_REQUEST_PERIODIC_FIXES, NULL);
         qmi_client_loc_start (ctx->client,
                               input,
